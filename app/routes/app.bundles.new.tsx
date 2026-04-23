@@ -4,7 +4,7 @@ import { Form, useLoaderData } from "@remix-run/react";
 import { Badge, BlockStack, Button, Card, InlineGrid, InlineStack, Text } from "@shopify/polaris";
 
 import prisma from "~/db.server";
-import { createShopifyBundleDiscount, normalizeDiscountValueType } from "~/models/discounts.server";
+import { createShopifyBundleDiscount, deleteShopifyDiscount, normalizeDiscountValueType } from "~/models/discounts.server";
 import { BADGE_PRESETS, DESIGN_PRESETS, DOM_EFFECTS } from "~/models/presets";
 import { getProductForBundle, listProductsForBundles } from "~/models/products.server";
 import { getOrCreateShop } from "~/models/shop.server";
@@ -210,10 +210,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   });
 
+  let createdDiscountId: string | null = null;
   try {
     const discount = await createShopifyBundleDiscount(admin, {
       ...bundle,
     });
+    createdDiscountId = discount.discountId;
     await prisma.bundle.update({
       where: { id: bundle.id },
       data: {
@@ -238,6 +240,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       status: "ERROR",
       message: error instanceof Error ? error.message : "Erreur inconnue",
     });
+    if (createdDiscountId) {
+      try {
+        await deleteShopifyDiscount(admin, createdDiscountId);
+      } catch (compensationError) {
+        await writeSyncLog({
+          shopId: shop.id,
+          bundleId: bundle.id,
+          action: "discount.compensating_delete",
+          status: "ERROR",
+          message: compensationError instanceof Error ? compensationError.message : "Erreur inconnue",
+          payload: { discountId: createdDiscountId },
+        });
+      }
+    }
     await prisma.bundle.delete({ where: { id: bundle.id } });
     throw error;
   }
