@@ -1,0 +1,31 @@
+query Input {
+  cart {
+    lines {
+      id
+      quantity
+      cost {
+        subtotalAmount {
+          amount
+        }
+      }
+      merchandise {
+        __typename
+        ... on ProductVariant {
+          id
+          product {
+            id
+          }
+        }
+      }
+      attribute(key: "_cashenza_bundle_id") {
+        value
+      }
+    }
+  }
+  discount {
+    discountClasses
+    metafield(namespace: "cashenza", key: "bundle_config") {
+      value
+    }
+  }
+}

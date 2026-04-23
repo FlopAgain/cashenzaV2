@@ -1,0 +1,18 @@
+api_version = "2026-01"
+uid = "0e8ccd6d-ba9c-164a-9dc6-c5f374a3f1ad335f3945"
+
+[[extensions]]
+name = "Cashenza bundle discount"
+handle = "cashenza-bundle-discount"
+type = "function"
+description = "Applies Cashenza bundle discounts from one synchronized Shopify discount per bundle."
+
+[[extensions.targeting]]
+target = "cart.lines.discounts.generate.run"
+input_query = "src/cart_lines_discounts_generate_run.graphql"
+export = "cart_lines_discounts_generate_run"
+
+[extensions.build]
+command = "cargo build --target=wasm32-unknown-unknown --release"
+path = "target/wasm32-unknown-unknown/release/cashenza_discount.wasm"
+watch = [ "src/**/*.rs", "src/**/*.graphql" ]

@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+model Shop {
+  id                  String                @id @default(cuid())
+  domain              String                @unique
+  installedAt         DateTime              @default(now())
+  uninstalledAt       DateTime?
+  currencyCode        String?
+  bundles             Bundle[]
+  analyticsEvents     AnalyticsEvent[]
+  billingSubscription BillingSubscription?
+  syncLogs            SyncLog[]
+}
+
+model Bundle {
+  id                      String          @id @default(cuid())
+  shopId                  String
+  shop                    Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  productId               String
+  productHandle           String
+  productTitle            String
+  type                    BundleType
+  status                  BundleStatus    @default(DRAFT)
+  shopifyDiscountId       String?         @unique
+  shopifyDiscountStatus   DiscountStatus  @default(DRAFT)
+  shopifyDiscountTitle    String?
+  discountValueType       DiscountValueType
+  discountValue           Decimal
+  discountStartsAt        DateTime
+  discountEndsAt          DateTime?
+  customerEligibility     CustomerEligibility @default(ALL_CUSTOMERS)
+  customerSegmentIds      String?
+  customerIds             String?
+  totalUsageLimit         Int?
+  oncePerCustomer         Boolean         @default(false)
+  timerMode               TimerMode       @default(REAL_END_DATE)
+  fakeTimerMinutes        Int?
+  stylePreset             String          @default("atelier")
+  badgePreset             String          @default("none")
+  domEffect               DomEffect       @default(FADE_UP)
+  items                   BundleItem[]
+  tiers                   BundleTier[]
+  style                   BundleStyle?
+  productSnapshot         ProductSnapshot?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  @@unique([shopId, productId, type])
+  @@index([shopId, status])
+  @@index([productId])
+}
+
+model BundleItem {
+  id                 String  @id @default(cuid())
+  bundleId           String
+  bundle             Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId          String
+  productHandle      String
+  productTitle       String
+  variantId          String?
+  variantTitle       String?
+  variantPrice       Decimal?
+  imageUrl           String?
+  quantity           Int     @default(1)
+  sortOrder          Int     @default(0)
+  required           Boolean @default(true)
+
+  @@index([bundleId, sortOrder])
+}
+
+model BundleTier {
+  id              String  @id @default(cuid())
+  bundleId        String
+  bundle          Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  quantity        Int
+  label           String
+  discountValue   Decimal
+  vignette        String?
+  sortOrder       Int     @default(0)
+
+  @@unique([bundleId, quantity])
+}
+
+model BundleStyle {
+  id              String  @id @default(cuid())
+  bundleId        String  @unique
+  bundle          Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  designTokens    String
+  customCss       String?
+  updatedAt       DateTime @updatedAt
+}
+
+model ProductSnapshot {
+  id                 String   @id @default(cuid())
+  bundleId           String   @unique
+  bundle             Bundle   @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  status             String
+  imageUrl           String?
+  imageAlt           String?
+  totalInventory     Int?
+  tracksInventory    Boolean
+  variantsCount      Int
+  variants           String
+  syncedAt           DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  bundleId    String?
+  productId   String?
+  type        String
+  value       Decimal?
+  metadata    String?
+  occurredAt  DateTime @default(now())
+
+  @@index([shopId, occurredAt])
+  @@index([bundleId, type])
+}
+
+model BillingSubscription {
+  id                    String   @id @default(cuid())
+  shopId                String   @unique
+  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopifyChargeId       String?  @unique
+  status                String   @default("TRIAL")
+  trialEndsAt           DateTime?
+  monthlyPriceUsd       Decimal  @default(8)
+  addOns                String?
+  updatedAt             DateTime @updatedAt
+}
+
+model SyncLog {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  bundleId    String?
+  action      String
+  status      String
+  message     String?
+  payload     String?
+  createdAt   DateTime @default(now())
+
+  @@index([shopId, createdAt])
+}
+
+enum BundleType {
+  VOLUME
+  CROSS_SELL
+}
+
+enum BundleStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  DELETED
+}
+
+enum DiscountStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  DISABLED
+  DELETED
+  ERROR
+}
+
+enum DiscountValueType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FINAL_AMOUNT
+}
+
+enum CustomerEligibility {
+  ALL_CUSTOMERS
+  CUSTOMER_SEGMENTS
+  SPECIFIC_CUSTOMERS
+}
+
+enum TimerMode {
+  REAL_END_DATE
+  FAKE_EVERGREEN
+  HIDDEN
+}
+
+enum DomEffect {
+  NONE
+  FADE_UP
+  SCALE_IN
+  SLIDE_LEFT
+}

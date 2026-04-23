@@ -1,0 +1,30 @@
+client_id = "d55f70b823b04b4ae22f3ff937ffa36b"
+name = "Cashenza"
+application_url = "https://replace-me.trycloudflare.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "bundle-dev-w89ntc1k.myshopify.com"
+
+[access_scopes]
+scopes = "read_products,write_products,read_discounts,write_discounts,read_customers,read_markets,write_app_proxy"
+
+[auth]
+redirect_urls = [
+  "https://replace-me.trycloudflare.com/auth/callback",
+  "https://replace-me.trycloudflare.com/auth/shopify/callback",
+  "https://replace-me.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2026-01"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks/app/uninstalled"
+
+[app_proxy]
+url = "/cashenza-proxy"
+prefix = "apps"
+subpath = "cashenza"

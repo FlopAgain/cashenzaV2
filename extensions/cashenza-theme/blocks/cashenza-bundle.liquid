@@ -1,0 +1,19 @@
+{% if product %}
+  <div
+    id="cashenza-bundle-root-{{ product.id }}"
+    class="cashenza-bundle-root"
+    data-cashenza-root
+    data-product-handle="{{ product.handle | escape }}"
+    data-shop-domain="{{ shop.permanent_domain | escape }}"
+  ></div>
+  {{ 'cashenza-bundle.css' | asset_url | stylesheet_tag }}
+  <script src="{{ 'cashenza-bundle.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Cashenza bundle",
+  "target": "section",
+  "settings": []
+}
+{% endschema %}
