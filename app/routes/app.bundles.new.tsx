@@ -18,6 +18,31 @@ function parseGidList(value: FormDataEntryValue | null) {
     .filter(Boolean);
 }
 
+function parseVolumeTiers(value: FormDataEntryValue | null, defaultDiscount: number) {
+  const parsed = String(value || "")
+    .split(/\n/)
+    .map((line) => {
+      const [quantityRaw, discountRaw] = line.split(":");
+      const quantity = Number(quantityRaw);
+      const discountValue = Number(discountRaw || defaultDiscount);
+      return { quantity, discountValue };
+    })
+    .filter((tier) => Number.isInteger(tier.quantity) && tier.quantity > 1 && Number.isFinite(tier.discountValue) && tier.discountValue > 0);
+
+  const uniqueByQuantity = new Map(parsed.map((tier) => [tier.quantity, tier]));
+  const tiers = [...uniqueByQuantity.values()].sort((a, b) => a.quantity - b.quantity);
+  return tiers.length ? tiers : [
+    { quantity: 2, discountValue: defaultDiscount },
+    { quantity: 3, discountValue: defaultDiscount + 5 },
+  ];
+}
+
+function formatVignette(discountValueType: string, value: number) {
+  if (discountValueType === "PERCENTAGE") return `Save ${value}%`;
+  if (discountValueType === "FIXED_AMOUNT") return `Save ${value}`;
+  return `Final ${value}`;
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -96,6 +121,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const badgePreset = String(formData.get("badgePreset") || "none");
   const domEffect = String(formData.get("domEffect") || "FADE_UP") as "NONE" | "FADE_UP" | "SCALE_IN" | "SLIDE_LEFT";
   const firstVariant = product.variants.nodes[0];
+  const volumeTiers = parseVolumeTiers(formData.get("volumeTiers"), discountValue);
   const crossSellProducts = type === "CROSS_SELL"
     ? (await Promise.all(selectedCrossSellIds.map((id) => getProductForBundle(admin, id)))).filter(Boolean)
     : [];
@@ -169,10 +195,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
       tiers: type === "VOLUME"
         ? {
-            create: [
-              { quantity: 2, label: "Pack x2", discountValue, vignette: `Save ${discountValue}%`, sortOrder: 0 },
-              { quantity: 3, label: "Pack x3", discountValue: discountValue + 5, vignette: `Save ${discountValue + 5}%`, sortOrder: 1 },
-            ],
+            create: volumeTiers.map((tier, index) => ({
+              quantity: tier.quantity,
+              label: `Pack x${tier.quantity}`,
+              discountValue: tier.discountValue,
+              vignette: formatVignette(discountValueType, tier.discountValue),
+              sortOrder: index,
+            })),
           }
         : undefined,
       items: {
@@ -273,6 +302,10 @@ export default function NewBundle() {
               <label>Limite totale d'utilisations<input name="totalUsageLimit" type="number" /></label>
               <label>
                 <input type="checkbox" name="oncePerCustomer" /> Limiter à une utilisation par client
+              </label>
+              <label>
+                Paliers volume
+                <textarea name="volumeTiers" rows={4} defaultValue={"2:10\n3:15"} />
               </label>
               <label>
                 Admissibilité
