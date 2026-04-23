@@ -5,6 +5,7 @@
   "scripts": {
     "build": "remix vite:build",
     "dev": "shopify app dev",
+    "web:dev": "remix vite:dev --host 0.0.0.0",
     "start": "remix-serve ./build/server/index.js",
     "setup": "prisma generate && prisma migrate dev",
     "lint": "eslint --cache --cache-location ./node_modules/.cache/eslint .",
