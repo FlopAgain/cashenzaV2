@@ -112,6 +112,7 @@ export default function BundlesIndex() {
     if (status) return "critical" as const;
     return undefined;
   };
+  const bundleLabel = (type: string) => type === "VOLUME" ? "Volume" : "Cross sell";
 
   return (
     <BlockStack gap="400">
@@ -166,20 +167,29 @@ export default function BundlesIndex() {
                 </IndexTable.Cell>
                 <IndexTable.Cell>{product.variantsCount.count}</IndexTable.Cell>
                 <IndexTable.Cell>
-                  {configured[0]?.discountEndsAt ? new Date(configured[0].discountEndsAt).toLocaleDateString("fr-FR") : "Aucune"}
+                  <BlockStack gap="100">
+                    {configured.length ? configured.map((bundle) => (
+                      <Text as="span" key={bundle!.id}>
+                        {bundleLabel(bundle!.type)}: {bundle!.discountEndsAt ? new Date(bundle!.discountEndsAt).toLocaleDateString("fr-FR") : "Aucune"}
+                      </Text>
+                    )) : "Aucune"}
+                  </BlockStack>
                 </IndexTable.Cell>
                 <IndexTable.Cell>
-                  <ButtonGroup>
+                  <BlockStack gap="200">
                     <Button size="slim" url={`/app/bundles/new?productId=${encodeURIComponent(product.id)}`}>Configure bundle</Button>
-                    {configured[0] ? <Button size="slim" url={`/app/bundles/${configured[0].id}/style`}>Edit style</Button> : null}
-                    {configured[0] ? (
-                      <Form method="post">
-                        <input type="hidden" name="bundleId" value={configured[0].id} />
-                        <button name="intent" value="deactivate" type="submit">Deactivate offer</button>
-                        <button name="intent" value="delete" type="submit">Delete offer</button>
-                      </Form>
-                    ) : null}
-                  </ButtonGroup>
+                    {configured.map((bundle) => (
+                      <InlineStack key={bundle!.id} gap="100" blockAlign="center">
+                        <Text as="span" fontWeight="semibold">{bundleLabel(bundle!.type)}</Text>
+                        <Button size="slim" url={`/app/bundles/${bundle!.id}/style`}>Edit style</Button>
+                        <Form method="post">
+                          <input type="hidden" name="bundleId" value={bundle!.id} />
+                          <button name="intent" value="deactivate" type="submit">Deactivate offer</button>
+                          <button name="intent" value="delete" type="submit">Delete offer</button>
+                        </Form>
+                      </InlineStack>
+                    ))}
+                  </BlockStack>
                 </IndexTable.Cell>
               </IndexTable.Row>
             );
