@@ -9,12 +9,16 @@ import { authenticate } from "~/shopify.server";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
-  const [impressions, addsToCart, buyNow, attributedCartValue] = await Promise.all([
+  const [impressions, addsToCart, buyNow, attributedCartValue, confirmedRevenue] = await Promise.all([
     prisma.analyticsEvent.count({ where: { shopId: shop.id, type: "bundle_impression" } }),
     prisma.analyticsEvent.count({ where: { shopId: shop.id, type: "bundle_add_to_cart" } }),
     prisma.analyticsEvent.count({ where: { shopId: shop.id, type: "bundle_buy_now" } }),
     prisma.analyticsEvent.aggregate({
       where: { shopId: shop.id, type: { in: ["bundle_add_to_cart", "bundle_buy_now"] } },
+      _sum: { value: true },
+    }),
+    prisma.analyticsEvent.aggregate({
+      where: { shopId: shop.id, type: "bundle_revenue" },
       _sum: { value: true },
     }),
   ]);
@@ -24,6 +28,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     addsToCart,
     buyNow,
     attributedCartValue: attributedCartValue._sum.value?.toString() ?? "0",
+    confirmedRevenue: confirmedRevenue._sum.value?.toString() ?? "0",
     conversionRate: impressions ? Math.round(((addsToCart + buyNow) / impressions) * 1000) / 10 : 0,
   };
 };
@@ -43,8 +48,12 @@ export default function Analytics() {
         <Text as="p" variant="heading2xl">${data.attributedCartValue}</Text>
       </Card>
       <Card>
+        <Text as="p" tone="subdued">Revenu confirme</Text>
+        <Text as="p" variant="heading2xl">${data.confirmedRevenue}</Text>
+      </Card>
+      <Card>
         <Text as="p" tone="subdued">
-          Cette valeur mesure les paniers inities par Cashenza. Le revenu confirme sera ajoute ensuite via webhooks de commandes Shopify.
+          La valeur panier vient du storefront. Le revenu confirme vient des commandes payees Shopify contenant une propriete Cashenza.
         </Text>
       </Card>
     </BlockStack>
