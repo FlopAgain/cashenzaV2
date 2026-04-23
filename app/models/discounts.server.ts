@@ -48,7 +48,7 @@ function buildContext(customerEligibility: CustomerEligibility, customerIds?: st
   if (customerEligibility === "CUSTOMER_SEGMENTS") {
     return { customerSegments: { add: parseJsonArray(segmentIds) } };
   }
-  return { all: true };
+  return { all: "ALL" };
 }
 
 export function getBundleFunctionHandle() {
@@ -83,8 +83,6 @@ export async function createShopifyBundleDiscount(admin: AdminApiContext, bundle
           discountClasses: ["PRODUCT"],
           startsAt: bundle.discountStartsAt.toISOString(),
           endsAt: bundle.discountEndsAt?.toISOString(),
-          appliesOncePerCustomer: bundle.oncePerCustomer,
-          usageLimit: bundle.totalUsageLimit,
           combinesWith: {
             orderDiscounts: false,
             productDiscounts: false,

@@ -120,6 +120,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const stylePreset = String(formData.get("stylePreset") || "atelier");
   const badgePreset = String(formData.get("badgePreset") || "none");
   const domEffect = String(formData.get("domEffect") || "FADE_UP") as "NONE" | "FADE_UP" | "SCALE_IN" | "SLIDE_LEFT";
+  const totalUsageLimit = Number(formData.get("totalUsageLimit") || 0) || null;
+  const oncePerCustomer = formData.get("oncePerCustomer") === "on";
+  if (totalUsageLimit || oncePerCustomer) {
+    throw new Response(
+      "Les limites d'utilisation ne sont pas encore activables sur les reductions automatiques Shopify Functions sans enforcement dedie. L'offre n'a pas ete creee pour eviter un ecart base/Shopify.",
+      { status: 400 },
+    );
+  }
   const firstVariant = product.variants.nodes[0];
   const volumeTiers = parseVolumeTiers(formData.get("volumeTiers"), discountValue);
   const crossSellProducts = type === "CROSS_SELL"
@@ -170,8 +178,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       customerEligibility,
       customerIds: customerIds.length ? JSON.stringify(customerIds) : null,
       customerSegmentIds: customerSegmentIds.length ? JSON.stringify(customerSegmentIds) : null,
-      totalUsageLimit: Number(formData.get("totalUsageLimit") || 0) || null,
-      oncePerCustomer: formData.get("oncePerCustomer") === "on",
+      totalUsageLimit,
+      oncePerCustomer,
       timerMode: endsAt ? "REAL_END_DATE" : "FAKE_EVERGREEN",
       fakeTimerMinutes: endsAt ? null : 20,
       stylePreset,
