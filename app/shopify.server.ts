@@ -6,13 +6,14 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import prisma from "~/db.server";
 
 export const MONTHLY_PLAN = "Cashenza Monthly";
+const appUrl = (process.env.SHOPIFY_APP_URL || process.env.HOST || process.env.APP_URL || "").replace(/\/$/, "");
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.January26,
   scopes: (process.env.SCOPES || "").split(","),
-  appUrl: process.env.SHOPIFY_APP_URL || "",
+  appUrl,
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma) as never,
   distribution: AppDistribution.AppStore,
