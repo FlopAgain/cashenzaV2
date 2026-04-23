@@ -41,12 +41,13 @@
     return Math.max(0, base * (1 - value / 100));
   }
 
-  function track(shopDomain, bundle, type) {
+  function track(shopDomain, bundle, type, value) {
     const formData = new FormData();
     formData.set("shop", shopDomain);
     formData.set("bundleId", bundle.id);
     formData.set("productId", bundle.productId || "");
     formData.set("type", type);
+    if (value) formData.set("value", String(value));
 
     if (!navigator.sendBeacon?.("/apps/cashenza/analytics", formData)) {
       fetch("/apps/cashenza/analytics", { method: "POST", body: formData, keepalive: true });
@@ -210,6 +211,9 @@
       const quantityInput = root.querySelector(`input[name="cashenza-tier-${CSS.escape(bundle.id)}"]:checked`);
       const quantity = Number(quantityInput?.value || 1);
       const isCrossSell = bundle.type === "CROSS_SELL";
+      const estimatedValue = isCrossSell
+        ? (bundle.items || []).reduce((sum, item) => sum + Number(item.variantPrice || 0) * Number(item.quantity || 1), 0)
+        : discountedPrice(Number(firstVariant?.price || 0) * quantity, bundle, { discountValue: bundle.discountValue });
       const properties = isCrossSell || quantity > 1 ? { _cashenza_bundle_id: bundle.id } : {};
       const cartItems = isCrossSell
         ? (bundle.items || []).filter((item) => item.variantId).map((item) => ({
@@ -224,7 +228,7 @@
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ items: cartItems }),
       });
-      track(shopDomain, bundle, "bundle_add_to_cart");
+      track(shopDomain, bundle, redirectToCheckout ? "bundle_buy_now" : "bundle_add_to_cart", estimatedValue);
       window.location.href = redirectToCheckout ? "/checkout" : "/cart";
     }
 

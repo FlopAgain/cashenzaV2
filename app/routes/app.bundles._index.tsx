@@ -16,6 +16,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const search = url.searchParams.get("q") || "";
   const after = url.searchParams.get("after");
   const shop = await getOrCreateShop(session.shop);
+  await prisma.bundle.updateMany({
+    where: { shopId: shop.id, status: "ACTIVE", discountEndsAt: { lt: new Date() } },
+    data: { status: "EXPIRED", shopifyDiscountStatus: "EXPIRED" },
+  });
   const products = await listProductsForBundles(admin, { search, after, first: 4 });
   const productIds = products.nodes.map((product) => product.id);
   const bundles = await prisma.bundle.findMany({
@@ -102,6 +106,12 @@ export default function BundlesIndex() {
   const navigation = useNavigation();
 
   const bundleByProductAndType = new Map(bundles.map((bundle) => [`${bundle.productId}:${bundle.type}`, bundle]));
+  const statusTone = (status?: string) => {
+    if (status === "ACTIVE") return "success" as const;
+    if (status === "EXPIRED") return "warning" as const;
+    if (status) return "critical" as const;
+    return undefined;
+  };
 
   return (
     <BlockStack gap="400">
@@ -145,8 +155,8 @@ export default function BundlesIndex() {
                 </IndexTable.Cell>
                 <IndexTable.Cell>
                   <InlineStack gap="100">
-                    <Badge tone={volume ? "success" : undefined}>{`Volume ${volume ? "on" : "off"}`}</Badge>
-                    <Badge tone={crossSell ? "success" : undefined}>{`Cross sell ${crossSell ? "on" : "off"}`}</Badge>
+                    <Badge tone={statusTone(volume?.status)}>{`Volume ${volume ? volume.status.toLowerCase() : "off"}`}</Badge>
+                    <Badge tone={statusTone(crossSell?.status)}>{`Cross sell ${crossSell ? crossSell.status.toLowerCase() : "off"}`}</Badge>
                   </InlineStack>
                 </IndexTable.Cell>
                 <IndexTable.Cell>

@@ -11,6 +11,13 @@ import { getOrCreateShop } from "~/models/shop.server";
 import { writeSyncLog } from "~/models/sync-log.server";
 import { authenticate } from "~/shopify.server";
 
+function parseGidList(value: FormDataEntryValue | null) {
+  return String(value || "")
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -64,6 +71,27 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const endsAt = endsAtRaw ? new Date(endsAtRaw) : null;
   const discountValueType = normalizeDiscountValueType(formData.get("discountValueType"));
   const discountValue = Number(formData.get("discountValue") || 10);
+  if (Number.isNaN(startsAt.getTime()) || (endsAt && Number.isNaN(endsAt.getTime()))) {
+    throw new Response("Dates de réduction invalides.", { status: 400 });
+  }
+  if (endsAt && endsAt <= startsAt) {
+    throw new Response("La date de fin doit être postérieure à la date de début.", { status: 400 });
+  }
+  if (!Number.isFinite(discountValue) || discountValue <= 0) {
+    throw new Response("La valeur de réduction doit être supérieure à zéro.", { status: 400 });
+  }
+  const customerEligibilityRaw = String(formData.get("customerEligibility") || "ALL_CUSTOMERS");
+  const customerEligibility = customerEligibilityRaw === "CUSTOMER_SEGMENTS" || customerEligibilityRaw === "SPECIFIC_CUSTOMERS"
+    ? customerEligibilityRaw
+    : "ALL_CUSTOMERS";
+  const customerIds = parseGidList(formData.get("customerIds"));
+  const customerSegmentIds = parseGidList(formData.get("customerSegmentIds"));
+  if (customerEligibility === "SPECIFIC_CUSTOMERS" && customerIds.length === 0) {
+    throw new Response("Ajoute au moins un ID client Shopify pour cette admissibilité.", { status: 400 });
+  }
+  if (customerEligibility === "CUSTOMER_SEGMENTS" && customerSegmentIds.length === 0) {
+    throw new Response("Ajoute au moins un ID segment Shopify pour cette admissibilité.", { status: 400 });
+  }
   const stylePreset = String(formData.get("stylePreset") || "atelier");
   const badgePreset = String(formData.get("badgePreset") || "none");
   const domEffect = String(formData.get("domEffect") || "FADE_UP") as "NONE" | "FADE_UP" | "SCALE_IN" | "SLIDE_LEFT";
@@ -113,6 +141,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       discountValue,
       discountStartsAt: startsAt,
       discountEndsAt: endsAt,
+      customerEligibility,
+      customerIds: customerIds.length ? JSON.stringify(customerIds) : null,
+      customerSegmentIds: customerSegmentIds.length ? JSON.stringify(customerSegmentIds) : null,
       totalUsageLimit: Number(formData.get("totalUsageLimit") || 0) || null,
       oncePerCustomer: formData.get("oncePerCustomer") === "on",
       timerMode: endsAt ? "REAL_END_DATE" : "FAKE_EVERGREEN",
@@ -153,8 +184,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const discount = await createShopifyBundleDiscount(admin, {
       ...bundle,
-      customerIds: null,
-      customerSegmentIds: null,
     });
     await prisma.bundle.update({
       where: { id: bundle.id },
@@ -244,6 +273,22 @@ export default function NewBundle() {
               <label>Limite totale d'utilisations<input name="totalUsageLimit" type="number" /></label>
               <label>
                 <input type="checkbox" name="oncePerCustomer" /> Limiter à une utilisation par client
+              </label>
+              <label>
+                Admissibilité
+                <select name="customerEligibility">
+                  <option value="ALL_CUSTOMERS">Tous les clients</option>
+                  <option value="CUSTOMER_SEGMENTS">Segments de clientèle spécifiques</option>
+                  <option value="SPECIFIC_CUSTOMERS">Clients spécifiques</option>
+                </select>
+              </label>
+              <label>
+                IDs segments Shopify
+                <textarea name="customerSegmentIds" rows={3} placeholder="gid://shopify/Segment/..." />
+              </label>
+              <label>
+                IDs clients Shopify
+                <textarea name="customerIds" rows={3} placeholder="gid://shopify/Customer/..." />
               </label>
               <BlockStack gap="150">
                 <Text as="p" fontWeight="semibold">Produits additionnels cross sell</Text>

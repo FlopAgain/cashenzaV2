@@ -14,6 +14,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   const shop = await prisma.shop.findUnique({ where: { domain: shopDomain } });
   if (!shop) return json({ bundles: [] });
+  const now = new Date();
 
   const bundles = await prisma.bundle.findMany({
     where: {
@@ -21,6 +22,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       productHandle,
       status: "ACTIVE",
       shopifyDiscountStatus: "ACTIVE",
+      OR: [{ discountEndsAt: null }, { discountEndsAt: { gt: now } }],
     },
     include: { items: true, tiers: true, style: true, productSnapshot: true },
     orderBy: { createdAt: "desc" },
